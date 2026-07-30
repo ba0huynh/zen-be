@@ -2,7 +2,7 @@
   "name": "zen-be",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
-    "start": "bun ./src/database/schema.script.ts && bun run ./src/index.ts",
+    "start": "bun ./src/database/schema.script.ts && bun --bun x drizzle-kit migrate && bun run ./src/index.ts",
     "migration:generate": "bun --bun x drizzle-kit generate",
     "migration:run": "bun --bun x drizzle-kit migrate",
     "migration:studio": "bun --bun x drizzle-kit studio"
