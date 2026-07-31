@@ -15,7 +15,7 @@ async function getMassages(langageCode: LanguageCode) {
     return await db.select({
         ...extractTableColumns(massages, ['id','image']),
         ...extractTableColumns(massageTranslations, ['name', 'description']),
-        priceDuration: pricingQuery.data,
+        pricing: pricingQuery.data,
     })
         .from(massages)
         .innerJoin(pricingQuery, eq(massages.id, pricingQuery.massageId))
