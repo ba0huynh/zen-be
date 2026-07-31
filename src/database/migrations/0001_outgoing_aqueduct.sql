@@ -1,0 +1,1 @@
+ALTER TABLE "massages" ADD COLUMN "image" text NOT NULL;
