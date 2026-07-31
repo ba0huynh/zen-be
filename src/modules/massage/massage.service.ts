@@ -13,7 +13,7 @@ async function getMassages(langageCode: LanguageCode) {
         .groupBy(MassagePricing.massageId).as('pricingQuery')
 
     return await db.select({
-        ...extractTableColumns(massages, ['id']),
+        ...extractTableColumns(massages, ['id','image']),
         ...extractTableColumns(massageTranslations, ['name', 'description']),
         priceDuration: pricingQuery.data,
     })
