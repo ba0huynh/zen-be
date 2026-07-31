@@ -2,8 +2,10 @@ import { Hono } from 'hono'
 import env from '../env';
 import massageRoute from './modules/massage/massage.route';
 import bookingRoute from './modules/booking/booking.route';
+import { logger } from 'hono/logger';
 
 const app = new Hono()
+app.use(logger());
 app.onError((e,c) => {
   console.log(JSON.stringify(e))
   return c.json({ error: 'Internal server error' }, 500)
