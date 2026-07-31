@@ -3,9 +3,19 @@ import env from '../env';
 import massageRoute from './modules/massage/massage.route';
 import bookingRoute from './modules/booking/booking.route';
 import { logger } from 'hono/logger';
+import { cors } from 'hono/cors';
 
 const app = new Hono()
 app.use(logger());
+app.use(
+  "*",
+  cors({
+    // origin: [env.cors.origin!],
+    credentials: true, // allow cookies/headers
+    allowMethods: ["GET", "POST", "OPTIONS", "DELETE", "PATCH", "PUT"],
+    allowHeaders: ["Content-Type", "Authorization"],
+  }),
+);
 app.onError((e,c) => {
   console.log(JSON.stringify(e))
   return c.json({ error: 'Internal server error' }, 500)
