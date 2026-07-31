@@ -4,7 +4,10 @@ import massageRoute from './modules/massage/massage.route';
 import bookingRoute from './modules/booking/booking.route';
 
 const app = new Hono()
-
+app.onError((e,c) => {
+  console.log(JSON.stringify(e))
+  return c.json({ error: 'Internal server error' }, 500)
+})
 app.get('/', (c) => {
   return c.text('Hello Hono!')
 })
