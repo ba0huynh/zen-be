@@ -11,9 +11,13 @@ app.use(
   "*",
   cors({
     // origin: [env.cors.origin!],
-    credentials: true, // allow cookies/headers
-    allowMethods: ["GET", "POST", "OPTIONS", "DELETE", "PATCH", "PUT"],
-    allowHeaders: ["Content-Type", "Authorization"],
+    // credentials: true, // allow cookies/headers
+    allowMethods: ["GET", "POST",
+      //  "DELETE", "PUT"
+      ],
+    allowHeaders: ["Content-Type",
+      //  "Authorization"
+      ],
   }),
 );
 app.onError((e,c) => {
