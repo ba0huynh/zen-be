@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { massages, massageTranslations } from "../../database/database.schema";
 import db from "../../database/drizzle";
 import { LanguageCode } from "../../database/database.type";
@@ -22,7 +22,8 @@ async function getMassages(langageCode: LanguageCode) {
         .innerJoin(massageTranslations,
             and(
                 eq(massages.id, massageTranslations.massageId),
-                eq(massageTranslations.languageCode, langageCode)));
+                eq(massageTranslations.languageCode, langageCode)))
+        .orderBy(asc(massages.order));
 }
 const MassageService = {
     getMassages

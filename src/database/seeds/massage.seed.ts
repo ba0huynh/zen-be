@@ -6,7 +6,8 @@ type MassageSeed = MassageType & { pricing: Omit<MassagePricingType, 'massageId'
 async function insertMassage() {
     const data: MassageSeed[] = [{
         id: "a0000000-0000-0000-0000-000000000001",
-        image: "",
+        image: "https://upload.youcanbook.me/v/ycbm/8538c748-0195-449e-9c27-dbb22f4f8cdf/images/bioelectric_massage_2_1.png",
+        order: 1,
         translations: [
             {
                 description: '▯MUST TRY▯ BioElectric Reset Therapy (BMT)',
@@ -52,7 +53,8 @@ Khác với massage truyền thống, BMT sử dụng dòng điện nhẹ để 
     },
     {
         id: "a0000000-0000-0000-0000-000000000002",
-        image: "",
+        image: "https://upload.youcanbook.me/v/ycbm/8538c748-0195-449e-9c27-dbb22f4f8cdf/images/z4749429874891_537943e4f1de7a7c367264e3938a3319.jpg",
+        order: 2,
         translations: [
             {
                 description: `Trải nghiệm độc đáo này kết hợp nghệ thuật của các kỹ thuật Thái và Shiatsu, được tăng cường với các loại tinh dầu được tuyển chọn đặc biệt của chúng tôi. Liệu trình kết thúc bằng liệu pháp đá nóng nhẹ nhàng, được thiết kế để giải phóng các cơ căng thẳng và xua tan mệt mỏi, cuối cùng giúp bạn cảm thấy trẻ hóa, hồi sinh và sẵn sàng bắt đầu cuộc phiêu lưu kỳ nghỉ của mình.`,
@@ -79,7 +81,8 @@ Khác với massage truyền thống, BMT sử dụng dòng điện nhẹ để 
         ],
     }, {
         id: "a0000000-0000-0000-0000-000000000003",
-        image: "",
+        image: "https://upload.youcanbook.me/v/ycbm/8538c748-0195-449e-9c27-dbb22f4f8cdf/images/z4749429851909_a5a91611bdfedca508279d7a3d2b3812.jpg",
+        order: 3,
         pricing: [
             {
                 price: 720000,
@@ -102,7 +105,8 @@ Khác với massage truyền thống, BMT sử dụng dòng điện nhẹ để 
         }]
     }, {
         id: "a0000000-0000-0000-0000-000000000004",
-        image: "",
+        image: "https://upload.youcanbook.me/v/ycbm/8538c748-0195-449e-9c27-dbb22f4f8cdf/images/couple_massage_ads_creative_3.png",
+        order: 4,
         pricing: [
             {
                 price: 1440000,
@@ -134,7 +138,8 @@ Chúng tôi sẽ gửi 1 nam và 1 nữ nhân viên theo mặc định. Nếu b�
 
         , {
         id: "a0000000-0000-0000-0000-000000000005",
-        image: "",
+        image: "https://upload.youcanbook.me/v/ycbm/8538c748-0195-449e-9c27-dbb22f4f8cdf/images/z4749429869050_3469082a47141ae23b730e69dec25b55.jpg",
+        order: 5,
         pricing: [
             {
                 price: 800000,
@@ -158,7 +163,8 @@ Chúng tôi sẽ gửi 1 nam và 1 nữ nhân viên theo mặc định. Nếu b�
         }]
     }, {
         id: "a0000000-0000-0000-0000-000000000006",
-        image: "",
+        image: "https://upload.youcanbook.me/v/ycbm/8538c748-0195-449e-9c27-dbb22f4f8cdf/images/z4749429806157_cfd6a1ce925cc9e6581328fd83310c4f.jpg",
+        order: 6,
         pricing: [
             {
                 price: 900000,
@@ -182,7 +188,8 @@ Chúng tôi sẽ gửi 1 nam và 1 nữ nhân viên theo mặc định. Nếu b�
         }]
     }, {
         id: "a0000000-0000-0000-0000-000000000007",
-        image: "",
+        image: "https://upload.youcanbook.me/v/ycbm/8538c748-0195-449e-9c27-dbb22f4f8cdf/images/z4749429801085_198345a62713a3d78a7f0c017ce4b1ac.jpg",
+        order: 7,
         pricing: [
             {
                 price: 720000,
@@ -206,7 +213,8 @@ Chúng tôi sẽ gửi 1 nam và 1 nữ nhân viên theo mặc định. Nếu b�
         }]
     }, {
         id: "a0000000-0000-0000-0000-000000000008",
-        image: "",
+        image: "https://upload.youcanbook.me/v/ycbm/8538c748-0195-449e-9c27-dbb22f4f8cdf/images/client-with-suction-cup-process_2.jpg",
+        order: 8,
         pricing: [
             {
                 price: 1120000,
