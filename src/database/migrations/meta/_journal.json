@@ -15,6 +15,13 @@
       "when": 1785415921640,
       "tag": "0001_outgoing_aqueduct",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785544506799,
+      "tag": "0002_lowly_storm",
+      "breakpoints": true
     }
   ]
 }
