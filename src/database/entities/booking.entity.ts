@@ -9,6 +9,8 @@ export const bookings = pgTable('bookings', {
     createdAt: timestamp('created_at',{withTimezone:true,mode:'string'}).defaultNow().notNull(),
     startTime: timestamp('start_time',{withTimezone:true,mode:'string'}).notNull(),
     phone: text('phone').notNull(),
+    email: text('email').notNull(),
+    name: text('name').notNull(),
     address: text('address').notNull(),
     note: text('note'),
     gender: text('gender').$type<Gender>(),

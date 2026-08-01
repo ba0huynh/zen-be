@@ -29,6 +29,13 @@
       "when": 1785546412868,
       "tag": "0003_mushy_lethal_legion",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785578676039,
+      "tag": "0004_light_sabra",
+      "breakpoints": true
     }
   ]
 }
