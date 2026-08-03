@@ -10,6 +10,7 @@ export const bookingMassages = pgTable('booking_massages', {
     massageId: text('massage_id').notNull().references(() => massages.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
     price: numeric('price',{mode:'number'}).notNull(),
     duration: numeric('duration',{mode:'number'}).notNull(),
+    quantity: numeric('quantity',{mode:'number'}).notNull().default(1),
 })
 
 export const BookingMassageSchema = createSelectSchema(bookingMassages)

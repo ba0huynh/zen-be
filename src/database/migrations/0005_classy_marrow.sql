@@ -1,0 +1,1 @@
+ALTER TABLE "booking_massages" ADD COLUMN "quantity" numeric DEFAULT 1 NOT NULL;
