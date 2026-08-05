@@ -2,7 +2,7 @@
   "name": "zen-be",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
-    "seed:run": "bun run ./src/database/seeds/massage.seed.ts",
+    "seed:run": "bun ./src/database/seeds/index.ts",
     "start": "bun ./src/database/schema.script.ts && bun --bun x drizzle-kit migrate && bun run ./src/index.ts",
     "migration:generate": "bun --bun x drizzle-kit generate",
     "migration:run": "bun --bun x drizzle-kit migrate",
@@ -10,11 +10,14 @@
   },
   "dependencies": {
     "@hono/zod-validator": "^0.9.0",
+    "bullmq": "^6.0.8",
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
     "drizzle-zod": "^0.8.3",
     "hono": "^4.12.32",
+    "ioredis": "^6.0.0",
     "pg": "^8.22.0",
+    "resend": "^6.18.1",
     "wkx": "^0.5.0",
     "zod": "^4.4.3"
   },

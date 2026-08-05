@@ -4,6 +4,7 @@ import massageRoute from './modules/massage/massage.route';
 import bookingRoute from './modules/booking/booking.route';
 import { logger } from 'hono/logger';
 import { cors } from 'hono/cors';
+import bookingQueue from './modules/booking/booking.queue';
 
 const app = new Hono()
 app.use(logger());
@@ -25,6 +26,8 @@ app.onError((e,c) => {
   return c.json({ error: 'Internal server error' }, 500)
 })
 app.get('/', (c) => {
+  console.log('get /')
+  bookingQueue.findKTV("123")
   return c.text('Hello Hono!')
 })
 app.route('/massages', massageRoute)

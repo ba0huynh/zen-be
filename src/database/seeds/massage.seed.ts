@@ -237,11 +237,9 @@ Chúng tôi sẽ gửi 1 nam và 1 nữ nhân viên theo mặc định. Nếu b�
     }]
 }]
 
-async function insertMassage() {
-
-
-
+export default async function runMassageSeed() {
     await Promise.all(data.map(s => handleSeed(s)))
+        console.log(`Massage seeded successfully!`);
 
 }
 
@@ -276,14 +274,5 @@ async function handleSeed(seed: MassageSeed) {
                 set: { ...t }
             })
     }
-}
 
-insertMassage()
-    .then(() => {
-        console.log("Database seeded successfully!");
-        process.exit(0);
-    })
-    .catch((err) => {
-        console.error("Error seeding database:", err);
-        process.exit(1);
-    });
+}
