@@ -11,6 +11,7 @@ async function makeBooking({ massages: massagesPayload, ...bookingPayload }: Boo
     const [booking] = await db.insert(bookings).values(bookingPayload).returning()
     await db.insert(bookingMassages).values(massagesPayload.map((massage) => ({ ...massage, bookingId: booking.id })))
     bookingQueue.findKTV(booking.id)
+    await Slack.sendMessage(await formatBooking(booking.id))
 }
 
 async function sendKTVBookingEmail(email: string, bookingId: string) {
@@ -46,6 +47,51 @@ async function acceptBooking(email: string, bookingId: string) {
     await db.update(bookings).set({ therapistEmail: email }).where(eq(bookings.id, bookingId))
     await Slack.sendMessage(`Booking ${booking.startTime} đã được chấp nhận bởi ${ktv.name}`)
     return "Booking đã được chấp nhận thành công"
+}
+
+
+async function formatBooking(bookingId: string) {
+    const booking = await db.query.bookings.findFirst({
+        where: (b, { eq }) => eq(b.id, bookingId),
+        with: {
+            massages: {
+                with: {
+                    massage: {
+                        with: {
+                            translations: {
+                                where: (t, { eq }) => eq(t.languageCode, "en")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    })
+    if (!booking) return "Booking không tồn tại"
+    const massages = booking.massages.map((massage) => ({ ...massage, price: Number(massage.price) }))
+    const price = massages.reduce((acc, cur) => acc + cur.quantity * cur.price, 0)
+
+    const names = massages.map((massage) => {
+        const {duration,massage:detail,quantity} = massage
+        return `${detail.translations[0].name} - ${duration} Mins - ${quantity} Times`
+    }).join(', ')
+    return `━━━━━━━━━━━━━━━━━
+Booking from ${booking.name} at ${booking.address}
+therapy: ${names}
+:round_pushpin: Property: ${booking.address}
+- Room: ${booking.room}
+• Tower: ${booking.tower}
+• Address: ${booking.address}
+:alarm_clock: Start: ${booking.startTime}
+Duration: 2 hours
+    
+:male-doctor: Therapist: ${booking.gender === "female" ? "Female / Nữ" : "Male / Nam"}
+:moneybag: Price: ₫ ${price} VND
+• Method: in cash
+━━━━━━━━━━━━━━━━━
+- Email: ${booking.email}
+- Mobile: ${booking.phone}
+- Reference: ${booking.id}`;
 }
 
 const BookingService = {

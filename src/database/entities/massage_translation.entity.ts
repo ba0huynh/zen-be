@@ -3,6 +3,7 @@ import { LanguageCode, LanguageCodes } from "../database.type";
 import { massages } from "./massage.entity";
 import { createSelectSchema } from "drizzle-zod";
 import z from "zod";
+import { relations } from "drizzle-orm";
 
 export const massageTranslations = pgTable("massage_translations", {
     massageId: text("massage_id").notNull().references(() => massages.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
@@ -10,6 +11,10 @@ export const massageTranslations = pgTable("massage_translations", {
     languageCode: text("language_code").$type<LanguageCode>().notNull(),
     description: text("description").notNull(),
 }, (table) => [primaryKey({ columns: [table.massageId, table.languageCode] })])
+
+export const massageTranslationRelations = relations(massageTranslations, ({ one }) => ({
+    massage: one(massages, { fields: [massageTranslations.massageId], references: [massages.id] }),
+}))
 
 export const MassageTranslationSchema = createSelectSchema(massageTranslations,{
     languageCode:z.enum(LanguageCodes)
