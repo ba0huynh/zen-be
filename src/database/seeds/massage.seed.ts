@@ -9,9 +9,7 @@ const data: MassageSeed[] = [{
     order: 1,
     translations: [
         {
-            description: '▯MUST TRY▯ BioElectric Reset Therapy (BMT)',
-            languageCode: 'en',
-            name: `▯ MUST TRY: The Future of Wellness Is Here. ▯ Zen exclusive available starting July 31, 2025.
+            description: `▯ MUST TRY: The Future of Wellness Is Here. ▯ Zen exclusive available starting July 31, 2025.
 
 The revolutionary therapy that combines 3,000 years of Traditional Chinese Medicine wisdom with cutting-edge modern technology.
 
@@ -23,6 +21,8 @@ Unlike traditional massage, BMT uses gentle electrical currents to stimulate you
 • Better sleep & energy levels
 • Faster muscle recovery
 • Overall wellness optimization`,
+            languageCode: 'en',
+            name: `▯MUST TRY▯ BioElectric Reset Therapy (BMT)`,
         },
         {
             description: `▯ PHẢI THỬ ▯ Liệu Pháp Massage Điện Sinh Học (BMT)

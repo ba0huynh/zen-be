@@ -57,6 +57,13 @@
       "when": 1785908413525,
       "tag": "0007_dry_masque",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786007140005,
+      "tag": "0008_first_mojo",
+      "breakpoints": true
     }
   ]
 }
