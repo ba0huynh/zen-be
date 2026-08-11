@@ -5,6 +5,7 @@ import bookingRoute from './modules/booking/booking.route';
 import { logger } from 'hono/logger';
 import { cors } from 'hono/cors';
 import bookingQueue from './modules/booking/booking.queue';
+import placeRoute from './modules/place/place.route';
 
 const app = new Hono()
 app.use(logger());
@@ -32,6 +33,7 @@ app.get('/', (c) => {
 })
 app.route('/massages', massageRoute)
 app.route('/bookings', bookingRoute)
+app.route('/places', placeRoute)
 export default {
   port: Number(env.port) || 4000,
   fetch: app.fetch,

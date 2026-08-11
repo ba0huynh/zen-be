@@ -6,6 +6,7 @@ import { Gender, Genders } from "../database.type";
 import { relations } from "drizzle-orm";
 import { therapists } from "./therapist.entity";
 import { bookingMassages } from "./booking_massage.entity";
+import { bookingTherapistLogs } from "./booking_therapist_log.entity";
 
 export const bookings = pgTable('bookings', {
     id: text('id').primaryKey().default(gen_random_uuid).notNull(),
@@ -24,6 +25,7 @@ export const bookings = pgTable('bookings', {
 export const bookingRelations = relations(bookings, ({ one,many }) => ({
     therapist: one(therapists, { fields: [bookings.therapistEmail], references: [therapists.email] }),
     massages: many(bookingMassages),
+    logs: many(bookingTherapistLogs),
 }))
 export const BookingSchema = createSelectSchema(bookings, { gender: z.enum(Genders) })
 export type BookingType = z.infer<typeof BookingSchema>

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm"
+import { count, eq, isNotNull, isNull } from "drizzle-orm"
 import db from "../../database/drizzle"
 import { bookings } from "../../database/entities/booking.entity"
 import { bookingMassages } from "../../database/entities/booking_massage.entity"
@@ -106,10 +106,80 @@ Duration: 2 hours
 - Reference: ${booking.id}`;
 }
 
+const MASSAGES_WITH = {
+    massage: {
+        with: {
+            translations: {
+                where: (t: any, { eq }: any) => eq(t.languageCode, "en")
+            }
+        }
+    }
+} as const
+
+function serialize<T extends { massages: any[], therapistEmail: string | null }>({ massages, ...booking }: T) {
+    return {
+        ...booking,
+        status: booking.therapistEmail ? "assigned" : "pending",
+        totalPrice: massages.reduce((acc, cur) => acc + cur.price * cur.quantity, 0),
+        massages: massages.map(({ massage, ...bookingMassage }) => ({
+            id: bookingMassage.id,
+            massageId: bookingMassage.massageId,
+            name: massage.translations[0]?.name ?? null,
+            image: massage.image,
+            price: bookingMassage.price,
+            duration: bookingMassage.duration,
+            quantity: bookingMassage.quantity,
+        })),
+    }
+}
+
+async function getBookings({ page, limit, status }: BookingValidatorType['getBookings']) {
+    const filter = status === "assigned" ? isNotNull(bookings.therapistEmail)
+        : status === "pending" ? isNull(bookings.therapistEmail)
+            : undefined
+
+    const [rows, [totals]] = await Promise.all([
+        db.query.bookings.findMany({
+            where: filter,
+            orderBy: (b, { desc }) => desc(b.startTime),
+            limit,
+            offset: (page - 1) * limit,
+            with: { therapist: true, massages: { with: MASSAGES_WITH } },
+        }),
+        db.select({ value: count() }).from(bookings).where(filter),
+    ])
+
+    const total = totals?.value ?? 0
+    return { data: rows.map(serialize), page, limit, total, totalPages: Math.ceil(total / limit) }
+}
+
+async function getBooking(bookingId: string) {
+    const booking = await db.query.bookings.findFirst({
+        where: (b, { eq }) => eq(b.id, bookingId),
+        with: {
+            therapist: true,
+            massages: { with: MASSAGES_WITH },
+            logs: { with: { therapist: true }, orderBy: (l, { asc }) => asc(l.therapistEmail) },
+        },
+    })
+    if (!booking) return null
+    const { logs, ...rest } = booking
+    return {
+        ...serialize(rest),
+        logs: logs.map(({ therapist }) => ({
+            email: therapist.email,
+            name: therapist.name,
+            accepted: therapist.email === booking.therapistEmail,
+        })),
+    }
+}
+
 const BookingService = {
     makeBooking, sendKTVBookingEmail,
     sendNoKTVEmail,
     acceptBooking,
+    getBookings,
+    getBooking,
 } as const
 export default BookingService
 
