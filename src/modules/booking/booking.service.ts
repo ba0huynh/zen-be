@@ -10,6 +10,7 @@ import formatDate from "../../utils/format-date"
 import bookingEmail from "./booking.email"
 import env from "../../../env"
 import appToken from "../../utils/token"
+import bookingSlack from "./booking.slack"
 
 async function makeBooking({ massages: massagesPayload, ...bookingPayload }: BookingValidatorType['makeBooking']) {
     console.log('bookingPayload',bookingPayload)
@@ -17,7 +18,7 @@ async function makeBooking({ massages: massagesPayload, ...bookingPayload }: Boo
     await db.insert(bookingMassages).values(massagesPayload.map((massage) => ({ ...massage, bookingId: booking.id })))
     bookingQueue.findKTV(booking.id)
     await sendBookingConfirmationEmail(booking.id)
-    await Slack.sendMessage(await formatBooking(booking.id))
+    await notifyBookingCreated(booking.id)
 }
 
 async function sendKTVBookingEmail(email: string, bookingId: string) {
@@ -80,7 +81,8 @@ async function acceptBooking(email: string, bookingId: string) {
     if (!booking) return { ok: false, title: "Không tìm thấy booking", message: "Booking này không tồn tại hoặc đã bị huỷ." }
     if (booking.therapist) return { ok: false, title: "Booking đã có người nhận", message: `Booking này đã được ${booking.therapist.name} chấp nhận trước đó.` }
     await db.update(bookings).set({ therapistEmail: email }).where(eq(bookings.id, bookingId))
-    await Slack.sendMessage(`Booking ${formatDate.dateTime(booking.startTime)} đã được chấp nhận bởi ${ktv.name}`)
+    const accepted = await loadForSlack(bookingId)
+    if (accepted) await Slack.sendMessage(bookingSlack.accepted(accepted, ktv))
     return {
         ok: true,
         title: "Đã nhận booking",
@@ -94,50 +96,6 @@ async function acceptBooking(email: string, bookingId: string) {
     }
 }
 
-
-async function formatBooking(bookingId: string) {
-    const booking = await db.query.bookings.findFirst({
-        where: (b, { eq }) => eq(b.id, bookingId),
-        with: {
-            massages: {
-                with: {
-                    massage: {
-                        with: {
-                            translations: {
-                                where: (t, { eq }) => eq(t.languageCode, "en")
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    })
-    if (!booking) return "Booking không tồn tại"
-    const massages = booking.massages.map((massage) => ({ ...massage, price: Number(massage.price) }))
-    const price = massages.reduce((acc, cur) => acc + cur.quantity * cur.price, 0)
-
-    const names = massages.map((massage) => {
-        const {duration,massage:detail,quantity} = massage
-        return `${detail.translations[0].name} - ${duration} Mins - ${quantity} Times`
-    }).join(', ')
-    return `━━━━━━━━━━━━━━━━━
-Booking from ${booking.name} at ${booking.address}
-therapy: ${names}
-:round_pushpin: Property: ${booking.address}
-- Room: ${booking.room}
-• Tower: ${booking.tower}
-• Address: ${booking.address}
-:alarm_clock: Start: ${booking.startTime}
-Duration: 2 hours
-    
-:male-doctor: Therapist: ${booking.gender === "female" ? "Female / Nữ" : "Male / Nam"}
-:moneybag: Price: ₫ ${price} VND
-• Method: in cash
-━━━━━━━━━━━━━━━━━
-- Email: ${booking.email}
-- Mobile: ${booking.phone}
-- Reference: ${booking.id}`;
-}
 
 const MASSAGES_WITH = {
     massage: {
@@ -298,7 +256,7 @@ async function cancelBooking(bookingId: string, token: string) {
     }
 
     if (booking.therapistEmail) await sendCancelledKTVEmail(booking.therapistEmail, booking)
-    await Slack.sendMessage(`Booking ${formatDate.dateTime(booking.startTime)} của ${booking.name} đã bị huỷ${booking.therapist ? ` (KTV ${booking.therapist.name} đã được báo)` : ""}`)
+    await Slack.sendMessage(bookingSlack.cancelled({ ...booking, cancelledAt: cancelled.cancelledAt }))
 
     return {
         ok: true,
@@ -306,6 +264,31 @@ async function cancelBooking(bookingId: string, token: string) {
         message: "Your booking has been cancelled. Sorry to see you go — you're welcome back any time.",
         details: cancelDetails(booking),
     }
+}
+
+function loadForSlack(bookingId: string) {
+    return db.query.bookings.findFirst({
+        where: (b, { eq }) => eq(b.id, bookingId),
+        with: { therapist: true, massages: { with: MASSAGES_WITH } },
+    })
+}
+
+async function notifyBookingCreated(bookingId: string) {
+    const booking = await loadForSlack(bookingId)
+    if (!booking) return
+    await Slack.sendMessage(bookingSlack.created(booking))
+}
+
+async function notifyKTVAsked(bookingId: string, therapist: { name: string }, asked: number) {
+    const booking = await loadForSlack(bookingId)
+    if (!booking) return
+    await Slack.sendMessage(bookingSlack.ktvAsked(booking, therapist, asked))
+}
+
+async function notifyNoKTV(bookingId: string) {
+    const booking = await loadForSlack(bookingId)
+    if (!booking) return
+    await Slack.sendMessage(bookingSlack.noKTV(booking))
 }
 
 const BookingService = {
@@ -317,6 +300,8 @@ const BookingService = {
     sendBookingConfirmationEmail,
     previewCancelBooking,
     cancelBooking,
+    notifyKTVAsked,
+    notifyNoKTV,
 } as const
 export default BookingService
 

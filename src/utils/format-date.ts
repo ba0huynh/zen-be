@@ -66,8 +66,33 @@
   });
 }
 
+/**
+ * Formats a given date into a full Vietnamese weekday + time string.
+ * @example "Thứ Tư, 12/08/2026 lúc 05:30"
+ */
+ function full(dateInput: DateInput): string {
+  const date = new Date(dateInput);
+
+  const day = date.toLocaleDateString('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+  const clock = date.toLocaleTimeString('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+
+  return `${day} lúc ${clock}`;
+}
+
 const formatDate = {
   dateTime,
+  full,
   date,
   time,
   longDate,
