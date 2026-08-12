@@ -1,32 +1,43 @@
+import escapeHtml from "../../utils/escape-html"
+
+type Detail = { label: string, value: string }
+
 type ResultPage = {
     ok: boolean
     title: string
     message: string
-    details?: { label: string, value: string }[]
+    details?: Detail[]
 }
 
-const ESCAPES: Record<string, string> = {
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-}
-function escape(value: string) {
-    return value.replace(/[&<>"']/g, (char) => ESCAPES[char]!)
+type ConfirmPage = {
+    title: string
+    message: string
+    details?: Detail[]
+    action: string
+    fields: Record<string, string>
+    submitLabel: string
 }
 
 const CHECK_ICON = `<path d="M20 6 9 17l-5-5" />`
 const CROSS_ICON = `<path d="M18 6 6 18M6 6l12 12" />`
+const WARN_ICON = `<path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />`
 
-function result({ ok, title, message, details = [] }: ResultPage) {
+function rowsHtml(details: Detail[]) {
+    if (!details.length) return ""
     const rows = details
-        .map(({ label, value }) => `<div class="row"><dt>${escape(label)}</dt><dd>${escape(value)}</dd></div>`)
+        .map(({ label, value }) => `<div class="row"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`)
         .join("")
+    return `<dl>${rows}</dl>`
+}
 
+function shell({ state, icon, title, body }: { state: string, icon: string, title: string, body: string }) {
     return `<!doctype html>
 <html lang="vi">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex" />
-<title>${escape(title)} — Zen</title>
+<title>${escapeHtml(title)} — Zen</title>
 <style>
 :root {
   color-scheme: light dark;
@@ -37,6 +48,7 @@ function result({ ok, title, message, details = [] }: ResultPage) {
   --muted: #6d7a72;
   --accent: #2f7a5a;
   --accent-soft: #e6f2ec;
+  --on-accent: #ffffff;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -47,17 +59,14 @@ function result({ ok, title, message, details = [] }: ResultPage) {
     --muted: #9aa89f;
     --accent: #6cc196;
     --accent-soft: #1f3029;
+    --on-accent: #10201a;
   }
 }
-[data-state="error"] {
-  --accent: #b4453a;
-  --accent-soft: #fbeae8;
-}
+[data-state="error"] { --accent: #b4453a; --accent-soft: #fbeae8; }
+[data-state="warn"] { --accent: #a8641f; --accent-soft: #fbf1e3; }
 @media (prefers-color-scheme: dark) {
-  [data-state="error"] {
-    --accent: #e88a80;
-    --accent-soft: #33211f;
-  }
+  [data-state="error"] { --accent: #e88a80; --accent-soft: #33211f; }
+  [data-state="warn"] { --accent: #e0a463; --accent-soft: #2f2517; }
 }
 * { box-sizing: border-box; }
 body {
@@ -94,22 +103,9 @@ body {
   color: var(--accent);
 }
 .icon svg { width: 28px; height: 28px; }
-h1 {
-  margin: 0 0 8px;
-  font-size: 21px;
-  font-weight: 650;
-  letter-spacing: -.01em;
-}
-.message {
-  margin: 0;
-  color: var(--muted);
-  font-size: 15px;
-}
-dl {
-  margin: 26px 0 0;
-  text-align: left;
-  border-top: 1px solid var(--border);
-}
+h1 { margin: 0 0 8px; font-size: 21px; font-weight: 650; letter-spacing: -.01em; }
+.message { margin: 0; color: var(--muted); font-size: 15px; }
+dl { margin: 26px 0 0; text-align: left; border-top: 1px solid var(--border); }
 .row {
   display: flex;
   gap: 16px;
@@ -120,12 +116,20 @@ dl {
   font-size: 14px;
 }
 dt { color: var(--muted); flex: none; }
-dd {
-  margin: 0;
-  text-align: right;
-  font-weight: 550;
-  overflow-wrap: anywhere;
+dd { margin: 0; text-align: right; font-weight: 550; overflow-wrap: anywhere; }
+button {
+  width: 100%;
+  margin-top: 24px;
+  padding: 14px 24px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
 }
+button:hover { opacity: .9; }
 footer {
   margin-top: 24px;
   color: var(--muted);
@@ -135,24 +139,49 @@ footer {
 }
 </style>
 </head>
-<body data-state="${ok ? "success" : "error"}">
+<body data-state="${state}">
 <main class="card">
   <div class="icon">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      ${ok ? CHECK_ICON : CROSS_ICON}
+      ${icon}
     </svg>
   </div>
-  <h1>${escape(title)}</h1>
-  <p class="message">${escape(message)}</p>
-  ${rows ? `<dl>${rows}</dl>` : ""}
+  <h1>${escapeHtml(title)}</h1>
+  ${body}
   <footer>Zen Massage</footer>
 </main>
 </body>
 </html>`
 }
 
+function result({ ok, title, message, details = [] }: ResultPage) {
+    return shell({
+        state: ok ? "success" : "error",
+        icon: ok ? CHECK_ICON : CROSS_ICON,
+        title,
+        body: `<p class="message">${escapeHtml(message)}</p>
+  ${rowsHtml(details)}`,
+    })
+}
+
+function confirm({ title, message, details = [], action, fields, submitLabel }: ConfirmPage) {
+    const inputs = Object.entries(fields)
+        .map(([name, value]) => `<input type="hidden" name="${escapeHtml(name)}" value="${escapeHtml(value)}" />`)
+        .join("")
+
+    return shell({
+        state: "warn",
+        icon: WARN_ICON,
+        title,
+        body: `<p class="message">${escapeHtml(message)}</p>
+  ${rowsHtml(details)}
+  <form method="post" action="${escapeHtml(action)}">${inputs}<button type="submit">${escapeHtml(submitLabel)}</button></form>`,
+    })
+}
+
 const bookingPage = {
     result,
+    confirm,
 } as const
 
 export default bookingPage

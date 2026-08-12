@@ -64,6 +64,13 @@
       "when": 1786007140005,
       "tag": "0008_first_mojo",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786497539676,
+      "tag": "0009_silent_rattler",
+      "breakpoints": true
     }
   ]
 }

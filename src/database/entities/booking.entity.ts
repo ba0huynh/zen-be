@@ -21,6 +21,7 @@ export const bookings = pgTable('bookings', {
     note: text('note'),
     gender: text('gender').$type<Gender>(),
     therapistEmail: text('therapist_email'),
+    cancelledAt: timestamp('cancelled_at', { withTimezone: true, mode: 'string' }),
 })
 export const bookingRelations = relations(bookings, ({ one,many }) => ({
     therapist: one(therapists, { fields: [bookings.therapistEmail], references: [therapists.email] }),

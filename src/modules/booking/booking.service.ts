@@ -7,6 +7,8 @@ import bookingQueue from "./booking.queue"
 import { BookingValidatorType } from "./booking.validator"
 import Slack from "../../utils/slack"
 import formatDate from "../../utils/format-date"
+import bookingEmail from "./booking.email"
+import env from "../../../env"
 
 async function makeBooking({ massages: massagesPayload, ...bookingPayload }: BookingValidatorType['makeBooking']) {
     console.log('bookingPayload',bookingPayload)
@@ -17,25 +19,54 @@ async function makeBooking({ massages: massagesPayload, ...bookingPayload }: Boo
 }
 
 async function sendKTVBookingEmail(email: string, bookingId: string) {
-    const booking = await db.query.bookings.findFirst({ where: (b, { eq }) => eq(b.id, bookingId) })
-    if (!booking) return
-    await resend.emails.send({
-        from: "zen@jobfling.com",
-        to: email,
-        subject: "New Booking",
-        html: "There is a new booking for you.",
+    const booking = await db.query.bookings.findFirst({
+        where: (b, { eq }) => eq(b.id, bookingId),
+        with: { massages: { with: MASSAGES_WITH } },
     })
+    if (!booking) return
+
+    const acceptUrl = `${env.app.url}/bookings/accept?email=${encodeURIComponent(email)}&id=${encodeURIComponent(bookingId)}`
+    const { subject, html, text } = bookingEmail.ktvBooking({
+        acceptUrl,
+        startTime: formatDate.dateTime(booking.startTime),
+        address: booking.address,
+        room: booking.room,
+        tower: booking.tower,
+        note: booking.note,
+        gender: booking.gender,
+        massages: booking.massages.map(({ massage, duration, quantity }) => ({
+            name: massage.translations[0]?.name ?? "Massage",
+            duration,
+            quantity,
+        })),
+        totalPrice: booking.massages.reduce((acc, cur) => acc + cur.price * cur.quantity, 0),
+    })
+
+    await resend.emails.send({ from: "zen@jobfling.com", to: email, subject, html, text })
 }
+
 async function sendNoKTVEmail(bookingId: string) {
-    const booking = await db.query.bookings.findFirst({ where: (b, { eq }) => eq(b.id, bookingId) })
-    if (!booking) return
-    const { email } = booking
-    await resend.emails.send({
-        from: "zen@jobfling.com",
-        to: email,
-        subject: "No KTV",
-        html: "<p>Sorry, we couldn't find a KTV for you booking.</p>",
+    const booking = await db.query.bookings.findFirst({
+        where: (b, { eq }) => eq(b.id, bookingId),
+        with: { massages: { with: MASSAGES_WITH } },
     })
+    if (!booking) return
+
+    const { subject, html, text } = bookingEmail.noKTV({
+        bookingId: booking.id,
+        startTime: formatDate.dateTime(booking.startTime),
+        address: booking.address,
+        room: booking.room,
+        tower: booking.tower,
+        massages: booking.massages.map(({ massage, duration, quantity }) => ({
+            name: massage.translations[0]?.name ?? "Massage",
+            duration,
+            quantity,
+        })),
+        totalPrice: booking.massages.reduce((acc, cur) => acc + cur.price * cur.quantity, 0),
+    })
+
+    await resend.emails.send({ from: "zen@jobfling.com", to: booking.email, subject, html, text })
 }
 
 async function acceptBooking(email: string, bookingId: string) {
