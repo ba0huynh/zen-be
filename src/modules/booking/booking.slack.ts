@@ -30,7 +30,7 @@ function esc(value: string) {
 }
 
 function money(amount: number) {
-    return `${amount.toLocaleString("vi-VN")} ₫`
+    return `${amount.toLocaleString("en-US")} VND`
 }
 
 function section(title: string, lines: (string | false | null | undefined)[]) {
@@ -44,75 +44,75 @@ function details(booking: SlackBooking, status: string) {
     const totalPrice = booking.massages.reduce((acc, cur) => acc + cur.price * cur.quantity, 0)
     const totalDuration = booking.massages.reduce((acc, cur) => acc + cur.duration * cur.quantity, 0)
     const services = booking.massages.map((m) =>
-        `${esc(m.massage.translations[0]?.name ?? "Massage")} — ${m.duration} phút × ${m.quantity} — ${money(m.price * m.quantity)}`)
-    const gender = booking.gender === "female" ? "Nữ" : booking.gender === "male" ? "Nam" : "Không yêu cầu"
+        `${esc(m.massage.translations[0]?.name ?? "Massage")} — ${m.duration} mins × ${m.quantity} — ${money(m.price * m.quantity)}`)
+    const gender = booking.gender === "female" ? "Female" : booking.gender === "male" ? "Male" : "No preference"
 
     return [
-        section(":bust_in_silhouette: Khách hàng", [
-            `Tên: ${esc(booking.name)}`,
-            `Điện thoại: ${esc(booking.phone)}`,
+        section(":bust_in_silhouette: Customer", [
+            `Name: ${esc(booking.name)}`,
+            `Phone: ${esc(booking.phone)}`,
             `Email: ${esc(booking.email)}`,
         ]),
-        section(":alarm_clock: Thời gian", [
-            `Bắt đầu: ${formatDate.full(booking.startTime)}`,
-            `Thời lượng: ${totalDuration} phút`,
+        section(":alarm_clock: When", [
+            `Start: ${formatDate.fullEn(booking.startTime)}`,
+            `Duration: ${totalDuration} mins`,
         ]),
-        section(":round_pushpin: Địa điểm", [
-            `Địa chỉ: ${esc(booking.address)}`,
-            booking.room && `Phòng: ${esc(booking.room)}`,
-            booking.tower && `Tòa: ${esc(booking.tower)}`,
+        section(":round_pushpin: Location", [
+            `Address: ${esc(booking.address)}`,
+            booking.room && `Room: ${esc(booking.room)}`,
+            booking.tower && `Tower: ${esc(booking.tower)}`,
         ]),
-        section(":massage: Dịch vụ", services),
-        section(":moneybag: Thanh toán", [
-            `Tổng: ${money(totalPrice)}`,
-            "Hình thức: Tiền mặt",
+        section(":massage: Services", services),
+        section(":moneybag: Payment", [
+            `Total: ${money(totalPrice)}`,
+            "Method: Cash",
         ]),
-        section(":male-doctor: Kỹ thuật viên", [
-            `Yêu cầu: ${gender}`,
-            `Trạng thái: ${status}`,
+        section(":male-doctor: Therapist", [
+            `Requested: ${gender}`,
+            `Status: ${status}`,
         ]),
-        booking.note ? section(":memo: Ghi chú", [esc(booking.note)]) : "",
+        booking.note ? section(":memo: Notes", [esc(booking.note)]) : "",
     ].join("")
 }
 
 function message(header: string, booking: SlackBooking, status: string) {
-    return `${header}\n${LINE}${details(booking, status)}\n\n${LINE}\n_Mã booking: ${booking.id}_`
+    return `${header}\n${LINE}${details(booking, status)}\n\n${LINE}\n_Ref: ${booking.id}_`
 }
 
 function created(booking: SlackBooking) {
-    return message(":sparkles: *BOOKING MỚI*", booking, "Đang tìm KTV")
-}
-
-function ktvAsked(booking: SlackBooking, therapist: { name: string }, asked: number) {
-    return message(
-        `:mailbox_with_mail: *ĐANG MỜI KTV* — ${esc(therapist.name)}`,
-        booking,
-        `Đã mời ${esc(therapist.name)} (KTV thứ ${asked}), chờ phản hồi`,
-    )
+    return message(":sparkles: *NEW BOOKING*", booking, "Looking for a therapist")
 }
 
 function accepted(booking: SlackBooking, therapist: { name: string }) {
     return message(
-        `:white_check_mark: *BOOKING ĐÃ ĐƯỢC NHẬN* — ${esc(therapist.name)}`,
+        `:white_check_mark: *BOOKING ACCEPTED* — ${esc(therapist.name)}`,
         booking,
-        `Đã nhận bởi ${esc(therapist.name)}`,
+        `Accepted by ${esc(therapist.name)}`,
     )
 }
 
 function noKTV(booking: SlackBooking) {
     return message(
-        ":rotating_light: *KHÔNG TÌM ĐƯỢC KTV*",
+        ":rotating_light: *NO THERAPIST FOUND*",
         booking,
-        "Đã hỏi hết KTV, không ai nhận — cần xử lý thủ công",
+        "Every therapist has been asked, none accepted — needs manual follow-up",
     )
 }
 
 function cancelled(booking: SlackBooking) {
     return message(
-        ":x: *BOOKING ĐÃ BỊ HUỶ*",
+        ":x: *BOOKING CANCELLED*",
         booking,
-        booking.therapist ? `Đã huỷ — ${esc(booking.therapist.name)} đã được thông báo` : "Đã huỷ — chưa có KTV nhận",
+        booking.therapist ? `Cancelled — ${esc(booking.therapist.name)} has been notified` : "Cancelled — no therapist was assigned",
     )
+}
+
+/** Deliberately short: this fires once per therapist offered, so it stays scannable. */
+function ktvAsked(booking: Pick<SlackBooking, "id" | "startTime" | "address">, therapist: { name: string }, asked: number) {
+    return `:mailbox_with_mail: *Inviting therapist* — ${esc(therapist.name)} (#${asked})
+• When: ${formatDate.fullEn(booking.startTime)}
+• Address: ${esc(booking.address)}
+• Ref: ${booking.id}`
 }
 
 const bookingSlack = {

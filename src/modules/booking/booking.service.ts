@@ -31,7 +31,7 @@ async function sendKTVBookingEmail(email: string, bookingId: string) {
     const acceptUrl = `${env.app.url}/bookings/accept?email=${encodeURIComponent(email)}&id=${encodeURIComponent(bookingId)}`
     const { subject, html, text } = bookingEmail.ktvBooking({
         acceptUrl,
-        startTime: formatDate.dateTime(booking.startTime),
+        startTime: formatDate.full(booking.startTime),
         address: booking.address,
         room: booking.room,
         tower: booking.tower,
@@ -57,7 +57,7 @@ async function sendNoKTVEmail(bookingId: string) {
 
     const { subject, html, text } = bookingEmail.noKTV({
         bookingId: booking.id,
-        startTime: formatDate.dateTime(booking.startTime),
+        startTime: formatDate.fullEn(booking.startTime),
         address: booking.address,
         room: booking.room,
         tower: booking.tower,
@@ -77,21 +77,21 @@ async function acceptBooking(email: string, bookingId: string) {
         db.query.bookings.findFirst({ where: (b, { eq }) => eq(b.id, bookingId), with: { therapist: true } }),
         db.query.therapists.findFirst({ where: (t, { eq }) => eq(t.email, email) })
     ])
-    if (!ktv) return { ok: false, title: "Không tìm thấy KTV", message: `Email ${email} chưa được đăng ký làm kỹ thuật viên.` }
-    if (!booking) return { ok: false, title: "Không tìm thấy booking", message: "Booking này không tồn tại hoặc đã bị huỷ." }
-    if (booking.therapist) return { ok: false, title: "Booking đã có người nhận", message: `Booking này đã được ${booking.therapist.name} chấp nhận trước đó.` }
+    if (!ktv) return { ok: false, title: "Therapist not found", message: `${email} is not registered as a therapist.` }
+    if (!booking) return { ok: false, title: "Booking not found", message: "This booking does not exist or has been cancelled." }
+    if (booking.therapist) return { ok: false, title: "Already taken", message: `${booking.therapist.name} accepted this booking first.` }
     await db.update(bookings).set({ therapistEmail: email }).where(eq(bookings.id, bookingId))
     const accepted = await loadForSlack(bookingId)
     if (accepted) await Slack.sendMessage(bookingSlack.accepted(accepted, ktv))
     return {
         ok: true,
-        title: "Đã nhận booking",
-        message: `Cảm ơn ${ktv.name}! Bạn đã nhận booking này.`,
+        title: "Booking accepted",
+        message: `Thanks ${ktv.name}! This booking is now yours.`,
         details: [
-            { label: "Khách hàng", value: booking.name },
-            { label: "Thời gian", value: formatDate.dateTime(booking.startTime) },
-            { label: "Địa chỉ", value: booking.address },
-            { label: "Mã booking", value: booking.id },
+            { label: "Customer", value: booking.name },
+            { label: "Time", value: formatDate.fullEn(booking.startTime) },
+            { label: "Address", value: booking.address },
+            { label: "Reference", value: booking.id },
         ],
     }
 }
@@ -180,7 +180,7 @@ async function sendBookingConfirmationEmail(bookingId: string) {
     const { subject, html, text } = bookingEmail.bookingConfirmation({
         cancelUrl: cancelUrlFor(booking.id),
         name: booking.name,
-        startTime: formatDate.dateTime(booking.startTime),
+        startTime: formatDate.fullEn(booking.startTime),
         address: booking.address,
         room: booking.room,
         tower: booking.tower,
@@ -198,7 +198,7 @@ async function sendBookingConfirmationEmail(bookingId: string) {
 async function sendCancelledKTVEmail(email: string, booking: { id: string, startTime: string, address: string, room: string | null, tower: string | null }) {
     const { subject, html, text } = bookingEmail.bookingCancelled({
         bookingId: booking.id,
-        startTime: formatDate.dateTime(booking.startTime),
+        startTime: formatDate.fullEn(booking.startTime),
         address: booking.address,
         room: booking.room,
         tower: booking.tower,
@@ -218,7 +218,7 @@ async function findCancellable(bookingId: string, token: string) {
         return { error: { ok: false, title: "Booking not found", message: "This booking no longer exists." } } as const
     }
     if (booking.cancelledAt) {
-        return { error: { ok: false, title: "Already cancelled", message: `This booking was already cancelled on ${formatDate.dateTime(booking.cancelledAt)}.` } } as const
+        return { error: { ok: false, title: "Already cancelled", message: `This booking was already cancelled on ${formatDate.fullEn(booking.cancelledAt)}.` } } as const
     }
     return { booking } as const
 }
@@ -226,7 +226,7 @@ async function findCancellable(bookingId: string, token: string) {
 function cancelDetails(booking: { startTime: string, address: string, room: string | null, tower: string | null, massages: { price: number, quantity: number }[] }) {
     const place = [booking.room && `Room ${booking.room}`, booking.tower && `Tower ${booking.tower}`, booking.address].filter(Boolean).join(", ")
     return [
-        { label: "Time", value: formatDate.dateTime(booking.startTime) },
+        { label: "Time", value: formatDate.fullEn(booking.startTime) },
         { label: "Location", value: place },
         { label: "Total", value: `${booking.massages.reduce((acc, cur) => acc + cur.price * cur.quantity, 0).toLocaleString("vi-VN")} ₫` },
     ]

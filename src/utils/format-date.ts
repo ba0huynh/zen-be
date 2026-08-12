@@ -90,9 +90,34 @@
   return `${day} lúc ${clock}`;
 }
 
+/**
+ * Formats a given date into an English weekday + time string, still in Vietnam time.
+ * @example "Wed, 12 Aug 2026 at 08:30 (GMT+7)"
+ */
+ function fullEn(dateInput: DateInput): string {
+  const date = new Date(dateInput);
+
+  const day = date.toLocaleDateString('en-GB', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+  const clock = date.toLocaleTimeString('en-GB', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+
+  return `${day} at ${clock} (GMT+7)`;
+}
+
 const formatDate = {
   dateTime,
   full,
+  fullEn,
   date,
   time,
   longDate,

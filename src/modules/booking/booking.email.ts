@@ -183,24 +183,24 @@ function bookingConfirmation({ cancelUrl, name, startTime, massages, totalPrice,
 }
 
 function bookingCancelled({ bookingId, startTime, ...place }: BookingCancelled) {
-    const location = formatPlace(place, { room: "Phòng", tower: "Tòa" })
-    const heading = "Booking đã bị huỷ"
+    const location = formatPlace(place, { room: "Room", tower: "Tower" })
+    const heading = "Booking cancelled"
     const rows: Row[] = [
-        { label: "Thời gian", value: startTime },
-        { label: "Địa điểm", value: location },
-        { label: "Mã booking", value: bookingId },
+        { label: "Time", value: startTime },
+        { label: "Location", value: location },
+        { label: "Reference", value: bookingId },
     ]
 
     return {
-        subject: `Booking đã huỷ — ${startTime}`,
+        subject: `Booking cancelled — ${startTime}`,
         html: layout({
-            preheader: `Khách đã huỷ booking ${startTime}`,
+            preheader: `The customer cancelled the booking on ${startTime}`,
             heading,
-            intro: "Khách hàng đã huỷ booking bạn nhận. Bạn không cần đến địa điểm này nữa.",
+            intro: "The customer has cancelled the booking you accepted. You no longer need to travel to this location.",
             rows,
             accent: AMBER,
         }),
-        text: plain(heading, rows, "Khách hàng đã huỷ booking bạn nhận. Bạn không cần đến địa điểm này nữa."),
+        text: plain(heading, rows, "The customer has cancelled the booking you accepted. You no longer need to travel to this location."),
     }
 }
 
