@@ -6,6 +6,11 @@ import bullMQ from "../../utils/bullmq";
 import bookingQueue from "./booking.queue";
 import BookingService from "./booking.service";
 
+/** How long before the booking starts we give up and raise the "no therapist" alarm. */
+const NO_KTV_CUTOFF_MS = 1000 * 60 * 45;
+/** How long we wait for a therapist to accept before offering the booking to the next one. */
+const OFFER_TIMEOUT_MS = 1000 * 60 * 2.5;
+
 bullMQ.Worker("booking", async (job) => {
     if (job.name !== "findKTV") return;
 
@@ -21,6 +26,14 @@ bullMQ.Worker("booking", async (job) => {
             eq(bookingTherapistLogs.therapistEmail, therapists.email)))
         .where(isNull(bookingTherapistLogs.bookingId)).limit(1);
     if (ktv.length === 0) {
+        // Everyone has been asked. Don't raise the alarm yet — a therapist may still
+        // accept, or a new one may be added. Wait until 45 minutes before the start
+        // time, then re-check and only give up if we are still unassigned.
+        const untilCutoff = new Date(booking.startTime).getTime() - NO_KTV_CUTOFF_MS - Date.now();
+        if (untilCutoff > 0) {
+            bookingQueue.findKTV(bookingId, { delay: untilCutoff });
+            return;
+        }
         await BookingService.sendNoKTVEmail(bookingId);
         await BookingService.notifyNoKTV(bookingId);
     } else {
@@ -33,6 +46,6 @@ bullMQ.Worker("booking", async (job) => {
             db.insert(bookingTherapistLogs).values({ bookingId, therapistEmail }),
             BookingService.notifyKTVAsked(bookingId, therapist, asked),
         ]);
-        bookingQueue.findKTV(bookingId, { delay: 1000 * 60 * 2.5 });
+        bookingQueue.findKTV(bookingId, { delay: OFFER_TIMEOUT_MS });
     }
 },{concurrency:20});

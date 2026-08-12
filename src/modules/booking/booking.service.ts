@@ -83,6 +83,7 @@ async function acceptBooking(email: string, bookingId: string) {
     await db.update(bookings).set({ therapistEmail: email }).where(eq(bookings.id, bookingId))
     const accepted = await loadForSlack(bookingId)
     if (accepted) await Slack.sendMessage(bookingSlack.accepted(accepted, ktv))
+    await sendBookingAcceptedEmail(bookingId, ktv.name)
     return {
         ok: true,
         title: "Booking accepted",
@@ -206,6 +207,32 @@ async function sendCancelledKTVEmail(email: string, booking: { id: string, start
     await resend.emails.send({ from: "zen@jobfling.com", to: email, subject, html, text })
 }
 
+async function sendBookingAcceptedEmail(bookingId: string, therapistName: string) {
+    const booking = await db.query.bookings.findFirst({
+        where: (b, { eq }) => eq(b.id, bookingId),
+        with: { massages: { with: MASSAGES_WITH } },
+    })
+    if (!booking) return
+
+    const { subject, html, text } = bookingEmail.bookingAccepted({
+        cancelUrl: cancelUrlFor(booking.id),
+        name: booking.name,
+        therapistName,
+        startTime: formatDate.fullEn(booking.startTime),
+        address: booking.address,
+        room: booking.room,
+        tower: booking.tower,
+        massages: booking.massages.map(({ massage, duration, quantity }) => ({
+            name: massage.translations[0]?.name ?? "Massage",
+            duration,
+            quantity,
+        })),
+        totalPrice: booking.massages.reduce((acc, cur) => acc + cur.price * cur.quantity, 0),
+    })
+
+    await resend.emails.send({ from: "zen@jobfling.com", to: booking.email, subject, html, text })
+}
+
 async function findCancellable(bookingId: string, token: string) {
     if (!appToken.verify(bookingId, token)) {
         return { error: { ok: false, title: "Invalid link", message: "This cancellation link is not valid. Please use the link from your confirmation email." } } as const
@@ -298,6 +325,7 @@ const BookingService = {
     getBookings,
     getBooking,
     sendBookingConfirmationEmail,
+    sendBookingAcceptedEmail,
     previewCancelBooking,
     cancelBooking,
     notifyKTVAsked,

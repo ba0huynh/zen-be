@@ -204,11 +204,47 @@ function bookingCancelled({ bookingId, startTime, ...place }: BookingCancelled) 
     }
 }
 
+type BookingAccepted = Place & {
+    cancelUrl: string
+    name: string
+    therapistName: string
+    startTime: string
+    massages: MassageLine[]
+    totalPrice: number
+}
+
+function bookingAccepted({ cancelUrl, name, therapistName, startTime, massages, totalPrice, ...place }: BookingAccepted) {
+    const location = formatPlace(place, { room: "Room", tower: "Tower" })
+    const heading = "Your booking is confirmed"
+    const rows: Row[] = [
+        { label: "Therapist", value: therapistName },
+        { label: "Time", value: startTime },
+        { label: "Location", value: location },
+        { label: "Services", value: formatServices(massages, "mins") },
+        { label: "Total", value: formatPrice(totalPrice) },
+        { label: "Payment", value: "Cash on arrival" },
+    ]
+
+    return {
+        subject: `Booking confirmed with ${therapistName} — ${startTime}`,
+        html: layout({
+            preheader: `${therapistName} will see you on ${startTime}`,
+            heading,
+            intro: `Good news ${name} — ${therapistName} has accepted your booking and will arrive at the time below. If your plans change, you can still cancel using the link below.`,
+            rows,
+            accent: MUTED,
+            cta: { label: "Cancel this booking", url: cancelUrl, fallback: "Button not working? Open this link:" },
+        }),
+        text: plain(heading, rows, `Cancel this booking: ${cancelUrl}`),
+    }
+}
+
 const bookingEmail = {
     ktvBooking,
     noKTV,
     bookingConfirmation,
     bookingCancelled,
+    bookingAccepted,
 } as const
 
 export default bookingEmail
