@@ -2,7 +2,7 @@
 
 /**
  * Formats a given date into a full Vietnamese date-time string.
- * @example "18/02/2026, 16:30:00"
+ * @example "16:30 18/02/2026"
  */
  function dateTime(dateInput: DateInput): string {
   const date = new Date(dateInput);
@@ -14,7 +14,6 @@
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    second: '2-digit',
     hour12: false,
   });
 }
@@ -36,7 +35,7 @@
 
 /**
  * Formats a given date into a Vietnamese time-only string (24-hour format).
- * @example "16:30:00"
+ * @example "16:30"
  */
  function time(dateInput: DateInput): string {
   const date = new Date(dateInput);
@@ -45,7 +44,6 @@
     timeZone: 'Asia/Ho_Chi_Minh',
     hour: '2-digit',
     minute: '2-digit',
-    second: '2-digit',
     hour12: false,
   });
 }
