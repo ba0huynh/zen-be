@@ -10,10 +10,11 @@ const makeBooking = BookingSchema.pick({phone:true,startTime:true,address:true, 
  const getBookings = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
-  status: z.enum(["pending", "assigned"]).optional(),
+  status: z.enum(["pending", "assigned", "cancelled"]).optional(),
  })
  const getBooking = z.object({ id: z.string() })
-export const bookingValidator = {makeBooking,acceptBooking,getBookings,getBooking} as const
+ const cancelBooking = z.object({ id: z.string(), token: z.string() })
+export const bookingValidator = {makeBooking,acceptBooking,getBookings,getBooking,cancelBooking} as const
 export type BookingValidatorType = {
   [K in keyof typeof bookingValidator]: z.infer<(typeof bookingValidator)[K]>;
 };

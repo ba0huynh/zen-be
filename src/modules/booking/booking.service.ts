@@ -1,4 +1,4 @@
-import { count, eq, isNotNull, isNull } from "drizzle-orm"
+import { and, count, eq, isNotNull, isNull } from "drizzle-orm"
 import db from "../../database/drizzle"
 import { bookings } from "../../database/entities/booking.entity"
 import { bookingMassages } from "../../database/entities/booking_massage.entity"
@@ -9,12 +9,14 @@ import Slack from "../../utils/slack"
 import formatDate from "../../utils/format-date"
 import bookingEmail from "./booking.email"
 import env from "../../../env"
+import appToken from "../../utils/token"
 
 async function makeBooking({ massages: massagesPayload, ...bookingPayload }: BookingValidatorType['makeBooking']) {
     console.log('bookingPayload',bookingPayload)
     const [booking] = await db.insert(bookings).values(bookingPayload).returning()
     await db.insert(bookingMassages).values(massagesPayload.map((massage) => ({ ...massage, bookingId: booking.id })))
     bookingQueue.findKTV(booking.id)
+    await sendBookingConfirmationEmail(booking.id)
     await Slack.sendMessage(await formatBooking(booking.id))
 }
 
@@ -147,10 +149,10 @@ const MASSAGES_WITH = {
     }
 } as const
 
-function serialize<T extends { massages: any[], therapistEmail: string | null }>({ massages, ...booking }: T) {
+function serialize<T extends { massages: any[], therapistEmail: string | null, cancelledAt: string | null }>({ massages, ...booking }: T) {
     return {
         ...booking,
-        status: booking.therapistEmail ? "assigned" : "pending",
+        status: booking.cancelledAt ? "cancelled" : booking.therapistEmail ? "assigned" : "pending",
         totalPrice: massages.reduce((acc, cur) => acc + cur.price * cur.quantity, 0),
         massages: massages.map(({ massage, ...bookingMassage }) => ({
             id: bookingMassage.id,
@@ -165,9 +167,10 @@ function serialize<T extends { massages: any[], therapistEmail: string | null }>
 }
 
 async function getBookings({ page, limit, status }: BookingValidatorType['getBookings']) {
-    const filter = status === "assigned" ? isNotNull(bookings.therapistEmail)
-        : status === "pending" ? isNull(bookings.therapistEmail)
-            : undefined
+    const filter = status === "cancelled" ? isNotNull(bookings.cancelledAt)
+        : status === "assigned" ? and(isNull(bookings.cancelledAt), isNotNull(bookings.therapistEmail))
+            : status === "pending" ? and(isNull(bookings.cancelledAt), isNull(bookings.therapistEmail))
+                : undefined
 
     const [rows, [totals]] = await Promise.all([
         db.query.bookings.findMany({
@@ -205,12 +208,115 @@ async function getBooking(bookingId: string) {
     }
 }
 
+function cancelUrlFor(bookingId: string) {
+    return `${env.app.url}/bookings/cancel?id=${encodeURIComponent(bookingId)}&token=${appToken.sign(bookingId)}`
+}
+
+async function sendBookingConfirmationEmail(bookingId: string) {
+    const booking = await db.query.bookings.findFirst({
+        where: (b, { eq }) => eq(b.id, bookingId),
+        with: { massages: { with: MASSAGES_WITH } },
+    })
+    if (!booking) return
+
+    const { subject, html, text } = bookingEmail.bookingConfirmation({
+        cancelUrl: cancelUrlFor(booking.id),
+        name: booking.name,
+        startTime: formatDate.dateTime(booking.startTime),
+        address: booking.address,
+        room: booking.room,
+        tower: booking.tower,
+        massages: booking.massages.map(({ massage, duration, quantity }) => ({
+            name: massage.translations[0]?.name ?? "Massage",
+            duration,
+            quantity,
+        })),
+        totalPrice: booking.massages.reduce((acc, cur) => acc + cur.price * cur.quantity, 0),
+    })
+
+    await resend.emails.send({ from: "zen@jobfling.com", to: booking.email, subject, html, text })
+}
+
+async function sendCancelledKTVEmail(email: string, booking: { id: string, startTime: string, address: string, room: string | null, tower: string | null }) {
+    const { subject, html, text } = bookingEmail.bookingCancelled({
+        bookingId: booking.id,
+        startTime: formatDate.dateTime(booking.startTime),
+        address: booking.address,
+        room: booking.room,
+        tower: booking.tower,
+    })
+    await resend.emails.send({ from: "zen@jobfling.com", to: email, subject, html, text })
+}
+
+async function findCancellable(bookingId: string, token: string) {
+    if (!appToken.verify(bookingId, token)) {
+        return { error: { ok: false, title: "Invalid link", message: "This cancellation link is not valid. Please use the link from your confirmation email." } } as const
+    }
+    const booking = await db.query.bookings.findFirst({
+        where: (b, { eq }) => eq(b.id, bookingId),
+        with: { therapist: true, massages: { with: MASSAGES_WITH } },
+    })
+    if (!booking) {
+        return { error: { ok: false, title: "Booking not found", message: "This booking no longer exists." } } as const
+    }
+    if (booking.cancelledAt) {
+        return { error: { ok: false, title: "Already cancelled", message: `This booking was already cancelled on ${formatDate.dateTime(booking.cancelledAt)}.` } } as const
+    }
+    return { booking } as const
+}
+
+function cancelDetails(booking: { startTime: string, address: string, room: string | null, tower: string | null, massages: { price: number, quantity: number }[] }) {
+    const place = [booking.room && `Room ${booking.room}`, booking.tower && `Tower ${booking.tower}`, booking.address].filter(Boolean).join(", ")
+    return [
+        { label: "Time", value: formatDate.dateTime(booking.startTime) },
+        { label: "Location", value: place },
+        { label: "Total", value: `${booking.massages.reduce((acc, cur) => acc + cur.price * cur.quantity, 0).toLocaleString("vi-VN")} ₫` },
+    ]
+}
+
+async function previewCancelBooking(bookingId: string, token: string) {
+    const { error, booking } = await findCancellable(bookingId, token)
+    if (error) return error
+    return {
+        ok: true,
+        title: "Cancel this booking?",
+        message: "This cannot be undone. You'll need to make a new booking if you change your mind.",
+        details: cancelDetails(booking),
+    }
+}
+
+async function cancelBooking(bookingId: string, token: string) {
+    const { error, booking } = await findCancellable(bookingId, token)
+    if (error) return error
+
+    const [cancelled] = await db.update(bookings)
+        .set({ cancelledAt: new Date().toISOString() })
+        .where(and(eq(bookings.id, bookingId), isNull(bookings.cancelledAt)))
+        .returning()
+    if (!cancelled) {
+        return { ok: false, title: "Already cancelled", message: "This booking was already cancelled." }
+    }
+
+    if (booking.therapistEmail) await sendCancelledKTVEmail(booking.therapistEmail, booking)
+    await Slack.sendMessage(`Booking ${formatDate.dateTime(booking.startTime)} của ${booking.name} đã bị huỷ${booking.therapist ? ` (KTV ${booking.therapist.name} đã được báo)` : ""}`)
+
+    return {
+        ok: true,
+        title: "Booking cancelled",
+        message: "Your booking has been cancelled. Sorry to see you go — you're welcome back any time.",
+        details: cancelDetails(booking),
+    }
+}
+
 const BookingService = {
     makeBooking, sendKTVBookingEmail,
     sendNoKTVEmail,
     acceptBooking,
     getBookings,
     getBooking,
+    sendBookingConfirmationEmail,
+    previewCancelBooking,
+    cancelBooking,
 } as const
 export default BookingService
 
