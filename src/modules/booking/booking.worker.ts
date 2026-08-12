@@ -33,6 +33,6 @@ bullMQ.Worker("booking", async (job) => {
             db.insert(bookingTherapistLogs).values({ bookingId, therapistEmail }),
             Slack.sendMessage(`asking ${therapist.name} for booking ${bookingId} ${formatDate.dateTime(booking.startTime)}`),
         ]);
-        bookingQueue.findKTV(bookingId, { delay: 1000 * 60 * 5 });
+        bookingQueue.findKTV(bookingId, { delay: 1000 * 60 * 2.5 });
     }
 },{concurrency:20});
