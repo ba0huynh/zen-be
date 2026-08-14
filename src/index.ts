@@ -27,8 +27,6 @@ app.onError((e,c) => {
   return c.json({ error: 'Internal server error' }, 500)
 })
 app.get('/', (c) => {
-  console.log('get /')
-  bookingQueue.findKTV("123")
   return c.text('Hello Hono!')
 })
 app.route('/massages', massageRoute)

@@ -16,7 +16,7 @@ async function makeBooking({ massages: massagesPayload, ...bookingPayload }: Boo
     console.log('bookingPayload',bookingPayload)
     const [booking] = await db.insert(bookings).values(bookingPayload).returning()
     await db.insert(bookingMassages).values(massagesPayload.map((massage) => ({ ...massage, bookingId: booking.id })))
-    bookingQueue.findKTV(booking.id)
+    await bookingQueue.findKTV(booking.id)
     await sendBookingConfirmationEmail(booking.id)
     await notifyBookingCreated(booking.id)
 }

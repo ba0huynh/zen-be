@@ -31,7 +31,7 @@ bullMQ.Worker("booking", async (job) => {
         // time, then re-check and only give up if we are still unassigned.
         const untilCutoff = new Date(booking.startTime).getTime() - NO_KTV_CUTOFF_MS - Date.now();
         if (untilCutoff > 0) {
-            bookingQueue.findKTV(bookingId, { delay: untilCutoff });
+            await bookingQueue.findKTV(bookingId, { delay: untilCutoff });
             return;
         }
         await BookingService.sendNoKTVEmail(bookingId);
@@ -46,6 +46,6 @@ bullMQ.Worker("booking", async (job) => {
             db.insert(bookingTherapistLogs).values({ bookingId, therapistEmail }),
             BookingService.notifyKTVAsked(bookingId, therapist, asked),
         ]);
-        bookingQueue.findKTV(bookingId, { delay: OFFER_TIMEOUT_MS });
+        await bookingQueue.findKTV(bookingId, { delay: OFFER_TIMEOUT_MS });
     }
 },{concurrency:20});
