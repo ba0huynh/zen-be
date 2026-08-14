@@ -33,51 +33,67 @@ function money(amount: number) {
     return `${amount.toLocaleString("en-US")} VND`
 }
 
-function section(title: string, lines: (string | false | null | undefined)[]) {
-    const body = lines.filter(Boolean) as string[]
-    if (!body.length) return ""
-    const bullets = body.flatMap((line) => line.split("\n")).filter((line) => line.trim())
-    return `\n\n*${title}*\n${bullets.map((line) => `• ${line}`).join("\n")}`
+/** One compact line: "<icon> *Label* · a · b". Returns [] so empty rows drop out. */
+function line(icon: string, label: string, parts: (string | false | null | undefined)[]) {
+    const body = parts.filter(Boolean) as string[]
+    if (!body.length) return []
+    return [`${icon} *${label}* · ${body.join(" · ")}`]
+}
+
+/**
+ * The same massage is often booked several times at different lengths. Group by name
+ * and list the lengths so one long session reads as "Traditional (60m, 90m ×2)"
+ * instead of repeating the full name once per row.
+ */
+function summariseServices(massages: SlackBooking["massages"]) {
+    const byName = new Map<string, Map<number, number>>()
+    for (const m of massages) {
+        const name = esc(m.massage.translations[0]?.name ?? "Massage")
+        const lengths = byName.get(name) ?? new Map<number, number>()
+        lengths.set(m.duration, (lengths.get(m.duration) ?? 0) + m.quantity)
+        byName.set(name, lengths)
+    }
+    return [...byName]
+        .map(([name, lengths]) => {
+            const parts = [...lengths].map(([mins, qty]) => qty > 1 ? `${mins}m ×${qty}` : `${mins}m`)
+            return `${name} (${parts.join(", ")})`
+        })
+        .join(" · ")
 }
 
 function details(booking: SlackBooking, status: string) {
     const totalPrice = booking.massages.reduce((acc, cur) => acc + cur.price * cur.quantity, 0)
     const totalDuration = booking.massages.reduce((acc, cur) => acc + cur.duration * cur.quantity, 0)
-    const services = booking.massages.map((m) =>
-        `${esc(m.massage.translations[0]?.name ?? "Massage")} — ${m.duration} mins × ${m.quantity} — ${money(m.price * m.quantity)}`)
+    const services = summariseServices(booking.massages)
     const gender = booking.gender === "female" ? "Female" : booking.gender === "male" ? "Male" : "No preference"
 
     return [
-        section(":bust_in_silhouette: Customer", [
-            `Name: ${esc(booking.name)}`,
-            `Phone: ${esc(booking.phone)}`,
-            `Email: ${esc(booking.email)}`,
+        ...line(":alarm_clock:", "When", [formatDate.fullEn(booking.startTime), `${totalDuration} mins`]),
+        ...line(":round_pushpin:", "Where", [
+            esc(booking.address),
+            booking.room && `Room ${esc(booking.room)}`,
+            booking.tower && `Tower ${esc(booking.tower)}`,
         ]),
-        section(":alarm_clock: When", [
-            `Start: ${formatDate.fullEn(booking.startTime)}`,
-            `Duration: ${totalDuration} mins`,
-        ]),
-        section(":round_pushpin: Location", [
-            `Address: ${esc(booking.address)}`,
-            booking.room && `Room: ${esc(booking.room)}`,
-            booking.tower && `Tower: ${esc(booking.tower)}`,
-        ]),
-        section(":massage: Services", services),
-        section(":moneybag: Payment", [
-            `Total: ${money(totalPrice)}`,
-            "Method: Cash",
-        ]),
-        section(":male-doctor: Therapist", [
-            `Requested: ${gender}`,
-            `Status: ${status}`,
-        ]),
-        booking.note ? section(":memo: Notes", [esc(booking.note)]) : "",
-    ].join("")
+        ...line(":massage:", "Service", [services]),
+        ...line(":moneybag:", "Total", [money(totalPrice), "cash"]),
+        ...line(":male-doctor:", "Therapist", [gender, status]),
+        ...line(":memo:", "Note", [booking.note && esc(booking.note).replace(/\s*\n\s*/g, " · ")]),
+    ].join("\n")
+}
+
+/** Customer contact sits at the foot of the message, one channel per line. */
+function contact(booking: SlackBooking) {
+    return [
+        `:bust_in_silhouette: ${esc(booking.name)}`,
+        `:telephone_receiver: ${esc(booking.phone)}`,
+        `:e-mail: ${esc(booking.email)}`,
+    ].join("\n")
 }
 
 function message(header: string, booking: SlackBooking, status: string) {
-    return `${header}\n${LINE}${details(booking, status)}\n\n${LINE}\n_Ref: ${booking.id}_`
+    return `${header}\n${LINE}\n${details(booking, status)}\n${LINE}\n${contact(booking)}\n_Ref: ${booking.id}_`
 }
+
 
 function created(booking: SlackBooking) {
     return message(":sparkles: *NEW BOOKING*", booking, "Looking for a therapist")
@@ -95,7 +111,7 @@ function noKTV(booking: SlackBooking) {
     return message(
         ":rotating_light: *NO THERAPIST FOUND*",
         booking,
-        "Every therapist has been asked, none accepted — needs manual follow-up",
+        "All asked, none accepted — needs manual follow-up",
     )
 }
 
