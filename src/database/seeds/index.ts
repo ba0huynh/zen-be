@@ -1,5 +1,6 @@
 import runCountrySeed from "./coutry.seed"
 import runMassageSeed from "./massage.seed"
+import runPlaceSeed from "./place.seed"
 import runTherapistSeed from "./therapist.seed"
 
 async function runAllSeeds() {
@@ -7,6 +8,7 @@ async function runAllSeeds() {
         runMassageSeed(),
         runCountrySeed(),
         runTherapistSeed(),
+        runPlaceSeed(),
     ])
 }
 
