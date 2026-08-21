@@ -12,6 +12,9 @@ const env = {
   },
   resend: {
     apiKey: Bun.env.RESEND_API_KEY,
+  },
+  slack:{
+    url: Bun.env.SLACK_URL
   }
 };
 export default env;
