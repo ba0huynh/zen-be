@@ -11,6 +11,7 @@ import bookingEmail from "./booking.email"
 import env from "../../../env"
 import appToken from "../../utils/token"
 import bookingSlack from "./booking.slack"
+import { ADMIN_EMAILS, FROM_EMAIL } from "./booking.constant"
 
 async function makeBooking({ massages: massagesPayload, ...bookingPayload }: BookingValidatorType['makeBooking']) {
     console.log('bookingPayload',bookingPayload)
@@ -84,6 +85,7 @@ async function acceptBooking(email: string, bookingId: string) {
     const accepted = await loadForSlack(bookingId)
     if (accepted) await Slack.sendMessage(bookingSlack.accepted(accepted, ktv))
     await sendBookingAcceptedEmail(bookingId, ktv.name)
+    await notifyAdmins(bookingId, "Booking accepted", `Accepted by ${ktv.name}`)
     return {
         ok: true,
         title: "Booking accepted",
@@ -284,6 +286,7 @@ async function cancelBooking(bookingId: string, token: string) {
 
     if (booking.therapistEmail) await sendCancelledKTVEmail(booking.therapistEmail, booking)
     await Slack.sendMessage(bookingSlack.cancelled({ ...booking, cancelledAt: cancelled.cancelledAt }))
+    await notifyAdmins(bookingId, "Booking cancelled", booking.therapist ? `Cancelled by customer — ${booking.therapist.name} has been notified` : "Cancelled by customer — no therapist was assigned")
 
     return {
         ok: true,
@@ -300,22 +303,63 @@ function loadForSlack(bookingId: string) {
     })
 }
 
+/**
+ * Emails every ADMIN_EMAILS address about one step of the booking lifecycle.
+ * Deliberately non-fatal: a bounced ops notification must never fail the
+ * customer's booking or the therapist's accept.
+ */
+async function notifyAdmins(bookingId: string, heading: string, status: string) {
+    if (ADMIN_EMAILS.length === 0) return
+    try {
+        const booking = await loadForSlack(bookingId)
+        if (!booking) return
+
+        const { subject, html, text } = bookingEmail.adminNotice({
+            heading,
+            status,
+            bookingId: booking.id,
+            startTime: formatDate.fullEn(booking.startTime),
+            customerName: booking.name,
+            phone: booking.phone,
+            email: booking.email,
+            note: booking.note,
+            therapistName: booking.therapist?.name ?? null,
+            address: booking.address,
+            room: booking.room,
+            tower: booking.tower,
+            massages: booking.massages.map(({ massage, duration, quantity }) => ({
+                name: massage.translations[0]?.name ?? "Massage",
+                duration,
+                quantity,
+            })),
+            totalPrice: booking.massages.reduce((acc, cur) => acc + cur.price * cur.quantity, 0),
+        })
+
+        await resend.emails.send({ from: FROM_EMAIL, to: [...ADMIN_EMAILS], subject, html, text })
+    } catch (error) {
+        console.error(`admin notification failed for booking ${bookingId}:`, error)
+    }
+}
+
 async function notifyBookingCreated(bookingId: string) {
     const booking = await loadForSlack(bookingId)
     if (!booking) return
     await Slack.sendMessage(bookingSlack.created(booking))
+    await notifyAdmins(bookingId, "New booking", "Looking for a therapist")
 }
 
 async function notifyKTVAsked(bookingId: string, therapist: { name: string }, asked: number) {
     const booking = await loadForSlack(bookingId)
     if (!booking) return
     await Slack.sendMessage(bookingSlack.ktvAsked(booking, therapist, asked))
+    await notifyAdmins(bookingId, "Therapist invited", `Invited ${therapist.name} (therapist #${asked}), awaiting reply`)
 }
 
 async function notifyNoKTV(bookingId: string) {
     const booking = await loadForSlack(bookingId)
     if (!booking) return
     await Slack.sendMessage(bookingSlack.noKTV(booking))
+    await notifyAdmins(bookingId, "No therapist found", "All asked, none accepted — needs manual follow-up")
 }
 
 const BookingService = {

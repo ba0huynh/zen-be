@@ -239,12 +239,58 @@ function bookingAccepted({ cancelUrl, name, therapistName, startTime, massages, 
     }
 }
 
+type AdminNotice = Place & {
+    heading: string
+    status: string
+    bookingId: string
+    startTime: string
+    customerName: string
+    phone: string
+    email: string
+    note: string | null
+    therapistName: string | null
+    massages: MassageLine[]
+    totalPrice: number
+}
+
+function adminNotice({
+    heading, status, bookingId, startTime, customerName, phone, email,
+    note, therapistName, massages, totalPrice, ...place
+}: AdminNotice) {
+    const rows: Row[] = [
+        { label: "Status", value: status },
+        ...(therapistName ? [{ label: "Therapist", value: therapistName }] : []),
+        { label: "Time", value: startTime },
+        { label: "Location", value: formatPlace(place, { room: "Room", tower: "Tower" }) },
+        { label: "Services", value: formatServices(massages, "mins") },
+        { label: "Total", value: formatPrice(totalPrice) },
+        { label: "Customer", value: customerName },
+        { label: "Phone", value: phone },
+        { label: "Email", value: email },
+        ...(note ? [{ label: "Note", value: note }] : []),
+        { label: "Reference", value: bookingId },
+    ]
+
+    return {
+        subject: `[Zen] ${heading} — ${startTime}`,
+        html: layout({
+            preheader: `${status} · ${customerName} · ${startTime}`,
+            heading,
+            intro: status,
+            rows,
+            accent: MUTED,
+        }),
+        text: plain(heading, rows, ""),
+    }
+}
+
 const bookingEmail = {
     ktvBooking,
     noKTV,
     bookingConfirmation,
     bookingCancelled,
     bookingAccepted,
+    adminNotice,
 } as const
 
 export default bookingEmail
